@@ -58,12 +58,19 @@ pub fn build(b: *std.Build) void {
     // running `zig build`).
     b.installArtifact(lib);
 
-    const chunk_mod = b.createModule(.{
-        .root_source_file = b.path("src/Chunk.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    exe_mod.addImport("chunk", chunk_mod);
+    // const chunk_mod = b.createModule(.{
+    //     .root_source_file = b.path("src/Chunk.zig"),
+    //     .target = target,
+    //     .optimize = optimize,
+    // });
+    // exe_mod.addImport("chunk", chunk_mod);
+
+    // const vm_mod = b.createModule(.{
+    //     .root_source_file = b.path("src/VM.zig"),
+    //     .target = target,
+    //     .optimize = optimize,
+    // });
+    // exe_mod.addImport("vm", vm_mod);
 
     // This creates another `std.Build.Step.Compile`, but this one builds an executable
     // rather than a static library.
