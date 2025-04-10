@@ -69,6 +69,41 @@ fn run(self: *Self) InterpretResult {
                     return .INTERPRET_RUNTIME_ERROR;
                 };
             },
+            .OP_ADD => {
+                const b = self.pop();
+                const a = self.pop();
+                self.push(a + b) catch |err| {
+                    std.debug.print("Error: {any}\n", .{err});
+                    return .INTERPRET_RUNTIME_ERROR;
+                };
+            },
+            .OP_SUBTRACT => {
+                const b = self.pop();
+                const a = self.pop();
+                self.push(a - b) catch |err| {
+                    std.debug.print("Error: {any}\n", .{err});
+                    return .INTERPRET_RUNTIME_ERROR;
+                };
+            },
+            .OP_MULTIPLY => {
+                const b = self.pop();
+                const a = self.pop();
+                self.push(a * b) catch |err| {
+                    std.debug.print("Error: {any}\n", .{err});
+                    return .INTERPRET_RUNTIME_ERROR;
+                };
+            },
+            .OP_DIVIDE => {
+                const b = self.pop();
+                const a = self.pop();
+                if (b == 0) {
+                    return .INTERPRET_RUNTIME_ERROR;
+                }
+                self.push(a / b) catch |err| {
+                    std.debug.print("Error: {any}\n", .{err});
+                    return .INTERPRET_RUNTIME_ERROR;
+                };
+            },
             .OP_NEGATE => {
                 self.push(-self.pop()) catch |err| {
                     std.debug.print("Error: {any}\n", .{err});

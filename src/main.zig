@@ -17,6 +17,11 @@ pub fn main() !void {
     // try chunk.writeChunk(@intFromEnum(OpCode.OP_CONSTANT), 123);
     // try chunk.writeChunk(@intCast(constant), 123);
     try chunk.writeConstant(1.2, 123);
+    try chunk.writeConstant(3.4, 123);
+    try chunk.writeChunk(@intFromEnum(OpCode.OP_ADD), 123);
+
+    try chunk.writeConstant(5.6, 123);
+    try chunk.writeChunk(@intFromEnum(OpCode.OP_DIVIDE), 123);
     try chunk.writeChunk(@intFromEnum(OpCode.OP_NEGATE), 123);
 
     try chunk.writeChunk(@intFromEnum(OpCode.OP_RETURN), 125);

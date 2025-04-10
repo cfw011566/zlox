@@ -8,6 +8,10 @@ pub const OpCode = enum(u8) {
     OP_UNKNOWN,
     OP_NOP,
     OP_CONSTANT,
+    OP_ADD,
+    OP_SUBTRACT,
+    OP_MULTIPLY,
+    OP_DIVIDE,
     OP_NEGATE,
     OP_CONSTANT_LONG,
     OP_RETURN,
@@ -83,6 +87,10 @@ pub fn dissembleInstruction(self: Self, offset: usize) usize {
     const instruction: OpCode = @enumFromInt(self.codes.items[offset]);
     switch (instruction) {
         .OP_CONSTANT => return self.constantInstruction("OP_CONSTANT", offset),
+        .OP_ADD => return self.simpleInstruction("OP_ADD", offset),
+        .OP_SUBTRACT => return self.simpleInstruction("OP_SUBTRACT", offset),
+        .OP_MULTIPLY => return self.simpleInstruction("OP_MULTIPLY", offset),
+        .OP_DIVIDE => return self.simpleInstruction("OP_DIVIDE", offset),
         .OP_NEGATE => return self.simpleInstruction("OP_NEGATE", offset),
         .OP_CONSTANT_LONG => return self.constantLongInstruction("OP_CONSTANT_LONG", offset),
         .OP_RETURN => return self.simpleInstruction("OP_RETURN", offset),
