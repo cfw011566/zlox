@@ -39,17 +39,14 @@ pub fn interpret(self: *Self, chunk: *Chunk) InterpretResult {
     return self.run();
 }
 
-fn READ_BYTE(self: *Self) Chunk.OpCode {
-    const byte: Chunk.OpCode = @enumFromInt(self.chunk.codes.items[self.ip]);
+inline fn READ_BYTE(self: *Self) u8 {
+    const byte = self.chunk.codes.items[self.ip];
     self.ip += 1;
     return byte;
 }
 
-fn READ_CONSTANT(self: *Self) Chunk.Value {
-    const index: u8 = self.chunk.codes.items[self.ip];
-    self.ip += 1;
-    const constant: Chunk.Value = self.chunk.constants.items[index];
-    return constant;
+inline fn READ_CONSTANT(self: *Self) Chunk.Value {
+    return self.chunk.constants.items[self.READ_BYTE()];
 }
 
 fn run(self: *Self) InterpretResult {
@@ -63,7 +60,7 @@ fn run(self: *Self) InterpretResult {
             std.debug.print("ip: {d}\n", .{self.ip});
             _ = self.chunk.dissembleInstruction(self.ip);
         }
-        const instruction: Chunk.OpCode = self.READ_BYTE();
+        const instruction: Chunk.OpCode = @enumFromInt(self.READ_BYTE());
         switch (instruction) {
             .OP_CONSTANT => {
                 const value = self.READ_CONSTANT();
