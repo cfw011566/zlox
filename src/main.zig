@@ -19,7 +19,6 @@ pub fn main() !void {
     try chunk.writeChunk(@intFromEnum(OpCode.OP_NOP), 129);
 
     chunk.disassembleChunk("test chunk");
-    chunk.freeChunk();
 
     return;
 }

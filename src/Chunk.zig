@@ -16,6 +16,7 @@ constants: std.ArrayList(Value),
 
 const Self = @This();
 
+// initChunk
 pub fn init(allocator: std.mem.Allocator) Self {
     return Self{
         .allocator = allocator,
@@ -23,6 +24,13 @@ pub fn init(allocator: std.mem.Allocator) Self {
         .lines = std.ArrayList(usize).init(allocator),
         .constants = std.ArrayList(Value).init(allocator),
     };
+}
+
+// freeChunk
+pub fn deinit(self: Self) void {
+    self.codes.deinit();
+    self.lines.deinit();
+    self.constants.deinit();
 }
 
 pub fn writeChunk(self: *Self, byte: u8, line: usize) !void {
@@ -49,18 +57,6 @@ pub fn writeConstant(self: *Self, value: Value, line: usize) !void {
 pub fn addConstant(self: *Self, value: Value) !usize {
     try self.constants.append(value);
     return self.constants.items.len - 1;
-}
-
-pub fn freeChunk(self: *Self) void {
-    self.codes.clearAndFree();
-    self.lines.clearAndFree();
-    self.constants.clearAndFree();
-}
-
-pub fn deinit(self: Self) void {
-    self.codes.deinit();
-    self.lines.deinit();
-    self.constants.deinit();
 }
 
 pub fn disassembleChunk(self: Self, name: []const u8) void {
