@@ -19,7 +19,7 @@ pub const OpCode = enum(u8) {
 };
 
 pub const Chunk = struct {
-    allocator: std.mem.Allocator,
+    allocator: Allocator,
     codes: std.ArrayList(u8),
     lines: std.ArrayList(usize),
     constants: std.ArrayList(Value),
@@ -27,7 +27,7 @@ pub const Chunk = struct {
     const Self = @This();
 
     // initChunk
-    pub fn init(allocator: std.mem.Allocator) Self {
+    pub fn init(allocator: Allocator) Self {
         return Self{
             .allocator = allocator,
             .codes = std.ArrayList(u8).init(allocator),
@@ -87,21 +87,21 @@ pub const Chunk = struct {
         }
 
         const instruction: OpCode = @enumFromInt(self.codes.items[offset]);
-        switch (instruction) {
-            .OP_CONSTANT => return self.constantInstruction("OP_CONSTANT", offset),
-            .OP_ADD => return self.simpleInstruction("OP_ADD", offset),
-            .OP_SUBTRACT => return self.simpleInstruction("OP_SUBTRACT", offset),
-            .OP_MULTIPLY => return self.simpleInstruction("OP_MULTIPLY", offset),
-            .OP_DIVIDE => return self.simpleInstruction("OP_DIVIDE", offset),
-            .OP_NEGATE => return self.simpleInstruction("OP_NEGATE", offset),
-            .OP_CONSTANT_LONG => return self.constantLongInstruction("OP_CONSTANT_LONG", offset),
-            .OP_RETURN => return self.simpleInstruction("OP_RETURN", offset),
-            .OP_NOP => return self.simpleInstruction("OP_NOP", offset),
-            else => {
+        return switch (instruction) {
+            .OP_CONSTANT => self.constantInstruction("OP_CONSTANT", offset),
+            .OP_ADD => self.simpleInstruction("OP_ADD", offset),
+            .OP_SUBTRACT => self.simpleInstruction("OP_SUBTRACT", offset),
+            .OP_MULTIPLY => self.simpleInstruction("OP_MULTIPLY", offset),
+            .OP_DIVIDE => self.simpleInstruction("OP_DIVIDE", offset),
+            .OP_NEGATE => self.simpleInstruction("OP_NEGATE", offset),
+            .OP_CONSTANT_LONG => self.constantLongInstruction("OP_CONSTANT_LONG", offset),
+            .OP_RETURN => self.simpleInstruction("OP_RETURN", offset),
+            .OP_NOP => self.simpleInstruction("OP_NOP", offset),
+            else => blk: {
                 std.debug.print("Unknown opcode {}\n", .{instruction});
-                return offset + 1;
+                break :blk offset + 1;
             },
-        }
+        };
     }
 
     fn simpleInstruction(self: Self, name: []const u8, offset: usize) usize {
@@ -442,9 +442,9 @@ pub const Scanner = struct {
             'a' => self.checkKeyword(1, 2, "nd", .AND),
             'c' => self.checkKeyword(1, 4, "lass", .CLASS),
             'e' => self.checkKeyword(1, 3, "else", .ELSE),
-            'f' => {
+            'f' => blk: {
                 const second = self.source[self.start + 1];
-                return switch (second) {
+                break :blk switch (second) {
                     'a' => self.checkKeyword(2, 3, "lse", .FALSE),
                     'o' => self.checkKeyword(2, 1, "r", .FOR),
                     'u' => self.checkKeyword(2, 2, "n", .FUN),
@@ -457,9 +457,9 @@ pub const Scanner = struct {
             'p' => self.checkKeyword(1, 4, "rint", .PRINT),
             'r' => self.checkKeyword(1, 5, "eturn", .RETURN),
             's' => self.checkKeyword(1, 4, "uper", .SUPER),
-            't' => {
+            't' => blk: {
                 const second = self.source[self.start + 1];
-                return switch (second) {
+                break :blk switch (second) {
                     'h' => self.checkKeyword(2, 2, "is", .THIS),
                     'r' => self.checkKeyword(2, 2, "ue", .TRUE),
                     else => .IDENTIFIER,
@@ -521,16 +521,11 @@ pub const Scanner = struct {
     }
 
     fn peek(self: Self) u8 {
-        if (self.current < self.source.len) {
-            return self.source[self.current];
-        } else {
-            return 0;
-        }
+        return if (self.isAtEnd()) 0 else self.source[self.current];
     }
 
     fn peekNext(self: Self) u8 {
-        if (self.isAtEnd()) return 0;
-        return self.source[self.current + 1];
+        return if (self.isAtEnd()) 0 else self.source[self.current + 1];
     }
 
     fn isAlpha(c: u8) bool {
