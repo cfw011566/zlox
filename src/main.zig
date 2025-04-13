@@ -1,7 +1,8 @@
 const std = @import("std");
-const Chunk = @import("Chunk.zig");
-const OpCode = Chunk.OpCode;
-const VM = @import("VM.zig");
+const Zlox = @import("zlox_lib");
+const VM = Zlox.VM;
+const Chunk = Zlox.Chunk;
+const OpCode = Zlox.OpCode;
 
 pub fn main() !void {
     var gpa = std.heap.DebugAllocator(.{}).init;
@@ -13,9 +14,6 @@ pub fn main() !void {
     var chunk = Chunk.init(allocator);
     defer chunk.deinit();
 
-    // const constant = try chunk.addConstant(1.2);
-    // try chunk.writeChunk(@intFromEnum(OpCode.OP_CONSTANT), 123);
-    // try chunk.writeChunk(@intCast(constant), 123);
     try chunk.writeConstant(1.2, 123);
     try chunk.writeConstant(3.4, 123);
     try chunk.writeChunk(@intFromEnum(OpCode.OP_ADD), 123);
