@@ -168,10 +168,10 @@ pub const VM = struct {
         // self.chunk.deinit();
     }
 
-    pub fn interpret(self: *Self, chunk: *Chunk) InterpretResult {
-        self.chunk = chunk;
-        self.ip = 0;
-        return self.run();
+    pub fn interpret(self: *Self, source: []const u8) InterpretResult {
+        _ = self;
+        compile(source);
+        return .INTERPRET_OK;
     }
 
     inline fn READ_BYTE(self: *Self) u8 {
@@ -348,56 +348,218 @@ pub const Scanner = struct {
         };
     }
 
-    pub fn scanToken() Token {
+    pub fn scanToken(self: *Self) Token {
+        self.skipWhiteSpace();
+
         scanner.start = scanner.current;
 
-        if (isAtEnd()) {
-            return makeToken(.EOF);
-        }
+        if (self.isAtEnd()) return self.makeToken(.EOF);
 
-        return errorToken("Unexpected character.");
-    }
+        const c: u8 = self.advance();
+        if (isAlpha(c)) return self.identifier();
+        if (isDigit(c)) return self.number();
 
-    fn isAtEnd() bool {
-        return scanner.current >= scanner.source.len;
-    }
-
-    fn makeToken(token_type: TokenType) Token {
-        return Token{
-            .token_type = token_type,
-            .token_string = scanner.source[scanner.start..scanner.current],
-            .line = scanner.line,
+        return switch (c) {
+            '(' => self.makeToken(.LEFT_PAREN),
+            ')' => self.makeToken(.RIGHT_PAREN),
+            '{' => self.makeToken(.LEFT_BRACE),
+            '}' => self.makeToken(.RIGHT_BRACE),
+            ';' => self.makeToken(.SEMICOLON),
+            ',' => self.makeToken(.COMMA),
+            '.' => self.makeToken(.DOT),
+            '-' => self.makeToken(.MINUS),
+            '+' => self.makeToken(.PLUS),
+            '/' => self.makeToken(.SLASH),
+            '*' => self.makeToken(.STAR),
+            '!' => if (self.match('=')) self.makeToken(.BANG_EQUAL) else self.makeToken(.BANG),
+            '=' => if (self.match('=')) self.makeToken(.EQUAL_EQUAL) else self.makeToken(.EQUAL),
+            '<' => if (self.match('=')) self.makeToken(.LESS_EQUAL) else self.makeToken(.LESS),
+            '>' => if (self.match('=')) self.makeToken(.GREATER_EQUAL) else self.makeToken(.GREATER),
+            '"' => self.string(),
+            else => self.errorToken("Unexpected character."),
         };
     }
 
-    fn errorToken(message: []const u8) Token {
+    fn isAtEnd(self: Self) bool {
+        return self.current >= self.source.len;
+    }
+
+    fn advance(self: *Self) u8 {
+        const c = self.source[self.current];
+        self.current += 1;
+        return c;
+    }
+
+    fn match(self: *Self, expected: u8) bool {
+        if (self.isAtEnd()) return false;
+        if (self.source[self.current] != expected) return false;
+
+        self.current += 1;
+        return true;
+    }
+
+    fn makeToken(self: Self, token_type: TokenType) Token {
+        return Token{
+            .token_type = token_type,
+            .token_string = self.source[self.start..self.current],
+            .line = self.line,
+        };
+    }
+
+    fn errorToken(self: Self, message: []const u8) Token {
         return Token{
             .token_type = .ERROR,
             .token_string = message,
-            .line = scanner.line,
+            .line = self.line,
         };
+    }
+
+    fn skipWhiteSpace(self: *Self) void {
+        while (true) {
+            const c = self.peek();
+            switch (c) {
+                ' ', '\r', '\t' => _ = self.advance(),
+                '\n' => {
+                    self.line += 1;
+                    _ = self.advance();
+                },
+                '/' => {
+                    if (self.peekNext() == '/') {
+                        while (self.peek() != '\n' and !self.isAtEnd())
+                            _ = self.advance();
+                    } else {
+                        return;
+                    }
+                },
+                else => return,
+            }
+        }
+    }
+
+    fn identifierType(self: Self) TokenType {
+        const c = self.source[self.start];
+        return switch (c) {
+            'a' => self.checkKeyword(1, 2, "nd", .AND),
+            'c' => self.checkKeyword(1, 4, "lass", .CLASS),
+            'e' => self.checkKeyword(1, 3, "else", .ELSE),
+            'f' => {
+                const second = self.source[self.start + 1];
+                return switch (second) {
+                    'a' => self.checkKeyword(2, 3, "lse", .FALSE),
+                    'o' => self.checkKeyword(2, 1, "r", .FOR),
+                    'u' => self.checkKeyword(2, 2, "n", .FUN),
+                    else => .IDENTIFIER,
+                };
+            },
+            'i' => self.checkKeyword(1, 1, "f", .IF),
+            'n' => self.checkKeyword(1, 2, "il", .NIL),
+            'o' => self.checkKeyword(1, 1, "r", .OR),
+            'p' => self.checkKeyword(1, 4, "rint", .PRINT),
+            'r' => self.checkKeyword(1, 5, "eturn", .RETURN),
+            's' => self.checkKeyword(1, 4, "uper", .SUPER),
+            't' => {
+                const second = self.source[self.start + 1];
+                return switch (second) {
+                    'h' => self.checkKeyword(2, 2, "is", .THIS),
+                    'r' => self.checkKeyword(2, 2, "ue", .TRUE),
+                    else => .IDENTIFIER,
+                };
+            },
+            'v' => self.checkKeyword(1, 2, "ar", .VAR),
+            'w' => self.checkKeyword(1, 4, "hile", .WHILE),
+            else => .IDENTIFIER,
+        };
+    }
+
+    fn checkKeyword(
+        self: Self,
+        start: usize,
+        length: usize,
+        rest: []const u8,
+        token_type: TokenType,
+    ) TokenType {
+        if (self.current - self.start == length) {
+            const begin = self.start + start;
+            const end = begin + length;
+            if (std.mem.eql(u8, self.source[begin..end], rest))
+                return token_type;
+        }
+        return .IDENTIFIER;
+    }
+
+    fn string(self: *Self) Token {
+        while (self.peek() != '"' and !self.isAtEnd()) {
+            if (self.peek() == '\n') self.line += 1;
+            _ = self.advance();
+        }
+
+        if (self.isAtEnd()) return self.errorToken("Unterminated string.");
+
+        // The closing quote.
+        _ = self.advance();
+        return self.makeToken(.STRING);
+    }
+
+    fn number(self: *Self) Token {
+        while (isDigit(self.peek())) _ = self.advance();
+
+        // Look for a fractional part
+        if (self.peek() == '.' and isDigit(self.peekNext())) {
+            // Consume '.'
+            _ = self.advance();
+
+            while (isDigit(self.peek())) _ = self.advance();
+        }
+
+        return self.makeToken(.NUMBER);
+    }
+
+    fn identifier(self: *Self) Token {
+        while (isAlpha(self.peek()) or isDigit(self.peek())) _ = self.advance();
+
+        return self.makeToken(self.identifierType());
+    }
+
+    fn peek(self: Self) u8 {
+        if (self.current < self.source.len) {
+            return self.source[self.current];
+        } else {
+            return 0;
+        }
+    }
+
+    fn peekNext(self: Self) u8 {
+        if (self.isAtEnd()) return 0;
+        return self.source[self.current + 1];
+    }
+
+    fn isAlpha(c: u8) bool {
+        return ((c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z') or c == '_');
+    }
+
+    fn isDigit(c: u8) bool {
+        return (c >= '0' and c <= '9');
     }
 };
 
 // Compiler.zig
 
-const scanner = undefined;
+var scanner: Scanner = undefined;
 
 pub fn compile(source: []const u8) void {
-    scanner = Scanner.initScanner(source);
-    var line = 0;
+    scanner = Scanner.init(source);
+    var line: usize = 0;
     while (true) {
         const token = scanner.scanToken();
         if (token.line != line) {
-            std.debug.print("%4d ", token.line);
+            std.debug.print("{d:4} ", .{token.line});
             line = token.line;
         } else {
             std.debug.print("   | ", .{});
         }
-        const token_str = source[token.start .. token.start + token.length];
-        std.debug.print("{d:2} '{s}'\n", .{ token.type, token_str });
+        std.debug.print("{d:2} '{s}'\n", .{ @intFromEnum(token.token_type), token.token_string });
 
-        if (token.type == .TOKEN_EOF) {
+        if (token.token_type == .EOF or token.token_type == .ERROR) {
             break;
         }
     }
